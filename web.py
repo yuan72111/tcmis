@@ -121,8 +121,7 @@ def today():
 
 @app.route("/me")
 def me():  
-	return render_template("mis2026.html")
-
+	return render_template("MIS2026B.html")
 @app.route("/welcome", methods=["GET"])
 def welcome():
     user = request.values.get("u")
