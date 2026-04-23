@@ -37,7 +37,6 @@ def index():
     link += "<a href=/read3>讀取Firestore資料(根據姓名關鍵字:input)</a><hr>"
     link += "<a href=/spider1>爬取子青老師本學期課程</a><hr>"
     link += "<a href=/movie1>爬取即將上映電影</a><hr>"
-    link += "<a href=/movie2>查詢電影關鍵字</a><hr>"
     return link
 
 from flask import request # 記得要在檔案最上方 import request
