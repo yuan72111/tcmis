@@ -1,11 +1,16 @@
 import requests
 from bs4 import BeautifulSoup
-
-url = "http://127.0.0.1:5000/me"
+url = "http://www.atmovies.com.tw/movie/next/"
 Data = requests.get(url)
 Data.encoding = "utf-8"
-#print(Data.text)
+Data.encoding = "utf-8"
+
 sp = BeautifulSoup(Data.text, "html.parser")
-result=sp.select("td iframe")
+result=sp.select(".filmListAllX li")
+info = ""
 for item in result:
-	print(item.get("src"))
+  title = item.find(class_="filmtitle").text
+  picture = "https://www.atmovies.com.tw" + item.find("img").get("src")
+
+  info += title + "\n" + picture + "\n\n"
+print(info)
