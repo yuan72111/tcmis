@@ -39,9 +39,27 @@ def index():
     link += "<a href=/movie1>爬取即將上映電影</a><hr>"
     link += "<a href=/spidermovie>爬取電影更新時間,上傳到firestore</a><hr>"
     link += "<a href=/searchMovie>輸入片名關鍵字,可以查詢資料庫符合的電影</a><hr>"
+    link += "<a href=/road>台中市十大肇事路口</a><hr>"
     return link
 
 from flask import request # 記得要在檔案最上方 import request
+
+@app.route("/road")
+def road():
+    R = "<h1>台中市十大肇事路口(113年10月)</h1>"
+    
+    url = "https://datacenter.taichung.gov.tw/swagger/OpenData/a1b899c0-511f-4e3d-b22b-814982a97e41"
+    
+    Data = requests.get(url)
+    
+    JsonData = json.loads(Data.text)
+    
+    for item in JsonData:
+        R += f"{item['路口名稱']}, 原因: {item['主要肇因']}, 件數: {item['總件數']}<br>"
+    
+    return R
+
+from flask import Flask, request
 
 @app.route("/searchMovie", methods=["GET", "POST"])
 def searchMovie():
