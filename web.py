@@ -48,80 +48,33 @@ from flask import request # 記得要在檔案最上方 import request
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    # build a request object
     req = request.get_json(force=True)
-    # fetch queryResult from json
-    action =  req["queryResult"]["action"]
-    #msg =  req["queryResult"]["queryText"]
-    #info = "我是黃柏源設計的機器人,動作：" + action + "； 查詢內容：" + msg
-    if (action == "rateChoice"):
-        rate =  req["queryResult"]["parameters"]["rate"]
-        info = "我是黃柏源設計的機器人,您選擇的電影分級是：" + rate
-        
-    return make_response(jsonify({"fulfillmentText": info}))
+    # 取得 Dialogflow 傳來的分級參數
+    rate = req["queryResult"]["parameters"].get("rate")
 
+    # 簡單轉換：對應你資料庫存入的中文名稱
+    if rate == "P": rate = "保護級"
+    elif rate == "G": rate = "普遍級"
 
-@app.route("/rate")
-def rate():
-    #本週新片
-    url = "https://www.atmovies.com.tw/movie/new/"
-    Data = requests.get(url)
-    Data.encoding = "utf-8"
-    sp = BeautifulSoup(Data.text, "html.parser")
-    lastUpdate = sp.find(class_="smaller09").text[5:]
-    print(lastUpdate)
-    print()
+    # 設定開頭語，加上你的名字
+    info = f"我是黃柏源設計的機器人。關於您查詢「{rate}」的電影：\n"
 
-    result=sp.select(".filmList")
+    db = firestore.client()
+    # 提醒：名稱需與 /rate 存入時的 "本週新片含分級" 一致
+    docs = db.collection("本週新片含分級").get()
 
-    for x in result:
-        title = x.find("a").text
-        introduce = x.find("p").text
+    result = ""
+    for doc in docs:
+        m = doc.to_dict()
+        if rate in m.get("rate", ""):
+            result += m.get("title") + "\n"
 
-        movie_id = x.find("a").get("href").replace("/", "").replace("movie", "")
-        hyperlink = "http://www.atmovies.com.tw/movie/" + movie_id
-        picture = "https://www.atmovies.com.tw/photo101/" + movie_id + "/pm_" + movie_id + ".jpg"
+    if result == "":
+        info += "目前資料庫中查無此級別的電影。"
+    else:
+        info += result
 
-        r = x.find(class_="runtime").find("img")
-        rate = ""
-        if r != None:
-            rr = r.get("src").replace("/images/cer_", "").replace(".gif", "")
-            if rr == "G":
-                rate = "普遍級"
-            elif rr == "P":
-                rate = "保護級"
-            elif rr == "F2":
-                rate = "輔12級"
-            elif rr == "F5":
-                rate = "輔15級"
-            else:
-                rate = "限制級"
-
-        t = x.find(class_="runtime").text
-
-        t1 = t.find("片長")
-        t2 = t.find("分")
-        showLength = t[t1+3:t2]
-
-        t1 = t.find("上映日期")
-        t2 = t.find("上映廳數")
-        showDate = t[t1+5:t2-8]
-
-        doc = {
-            "title": title,
-            "introduce": introduce,
-            "picture": picture,
-            "hyperlink": hyperlink,
-            "showDate": showDate,
-            "showLength": int(showLength),
-            "rate": rate,
-            "lastUpdate": lastUpdate
-        }
-
-        db = firestore.client()
-        doc_ref = db.collection("本週新片含分級").document(movie_id)
-        doc_ref.set(doc)
-    return "本週新片已爬蟲及存檔完畢，網站最近更新日期為：" + lastUpdate
+    return jsonify({"fulfillmentText": info})
 
 @app.route("/weather")
 def weather():
