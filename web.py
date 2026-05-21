@@ -42,9 +42,15 @@ def index():
     link += "<a href=/road>台中市十大肇事路口</a><hr>"
     link += "<a href=/weather>查詢天氣</a><hr>"
     link += "<a href=/rate>本周新片進DB</a><hr>"
+    link += "<a href=/demo>webdemo</a><hr>"
     return link
 
 from flask import request # 記得要在檔案最上方 import request
+
+
+@app.route("/demo")
+def demo():
+    return render_template("webdemo.html")
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
