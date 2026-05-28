@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+from google import genai
 
 from flask import Flask,render_template,request,make_response, jsonify
 from datetime import datetime
@@ -22,6 +23,7 @@ else:
 firebase_admin.initialize_app(cred)
 
 app = Flask(__name__)
+client = genai.Client()
 
 @app.route("/")
 def index():
@@ -43,9 +45,43 @@ def index():
     link += "<a href=/weather>查詢天氣</a><hr>"
     link += "<a href=/rate>本周新片進DB</a><hr>"
     link += "<a href=/demo>webdemo</a><hr>"
+    link += "<a href=/AI>AI</a><hr>"
+    link += "<a href=/ask>ask</a><hr>"
+
     return link
 
 from flask import request # 記得要在檔案最上方 import request
+
+@app.route('/ask', methods=['GET', 'POST']) 
+def ask():
+    if request.method == "POST":
+        user_prompt = request.form.get('prompt', '')
+        if not user_prompt:
+            return "請輸入內容", 400
+        try:
+            response = client.models.generate_content(
+                model='gemini-3.5-flash',
+                contents=user_prompt,
+            )
+            return response.text
+        except Exception as e:
+            return f"發生錯誤: {str(e)}", 500
+
+    else:    
+        # 當使用者直接打開網頁 (GET) 時，顯示輸入框畫面
+        return render_template("ask.html")
+
+
+@app.route("/AI")
+def AI():
+    # 每次使用者拜訪該路徑時，直接使用全域的 client 呼叫模型
+    response = client.models.generate_content(
+        model='gemini-3.5-flash',
+        contents='我想查詢靜宜大學資管系的評價？',
+    )
+    
+    # 回傳生成的文字
+    return response.text
 
 
 @app.route("/demo")
@@ -333,7 +369,7 @@ def read2():
     if Result == "":
         Result = "抱歉,查無此關鍵字姓名之老師資料"
     return Result
-	
+    
 @app.route("/read")
 def read():
     Result = ""
@@ -347,16 +383,16 @@ def read():
 
 @app.route("/mis")
 def course():
-	return "<h1>資訊管理導論</h1><a href=/>返回首頁</a>"
+    return "<h1>資訊管理導論</h1><a href=/>返回首頁</a>"
 
 @app.route("/today")
 def today():  
-	now = datetime.now()
-	return render_template("today.html", datetime = str(now))
+    now = datetime.now()
+    return render_template("today.html", datetime = str(now))
 
 @app.route("/me")
 def me():  
-	return render_template("MIS2026B.html")
+    return render_template("MIS2026B.html")
 @app.route("/welcome", methods=["GET"])
 def welcome():
     user = request.values.get("u")
@@ -390,4 +426,4 @@ def math_calc():
         
 
 if __name__ == "__main__":
-	app.run(debug=True)
+    app.run(debug=True)
