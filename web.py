@@ -91,47 +91,57 @@ def demo():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
+    # 取得 Dialogflow 傳來的請求資料
     req = request.get_json(force=True)
-    # 取得 Dialogflow 傳來的分級參數
-    rate = req["queryResult"]["parameters"].get("rate")
+   
+    # 為了避免 KeyError 當機，改用 .get() 來安全取值
+    action = req.get("queryResult", {}).get("action", "")
+   
+    # 設定一個預設回覆
+    info = "抱歉，我目前無法處理這個動作喔！"
+   
+    if action == "rateChoice":
+        # 取得使用者輸入的分級 (因為你說 Dialogflow 已經設定好同義詞轉換了)
+        rate = req.get("queryResult", {}).get("parameters", {}).get("rate", "")
+       
+        info = "我是黃柏源設計的機器人，您選擇的電影分級是：" + rate + "，本週相關電影有：\n\n"
 
-    # 簡單轉換：對應你資料庫存入的中文名稱
-    if rate == "P": rate = "保護級"
-    elif rate == "G": rate = "普遍級"
-
-    # 設定開頭語，加上你的名字
-    info = f"我是黃柏源設計的機器人。關於您查詢「{rate}」的電影：\n"
-
-    db = firestore.client()
-    # 提醒：名稱需與 /rate 存入時的 "本週新片含分級" 一致
-    docs = db.collection("本週新片含分級").get()
-
-    result = ""
-    for doc in docs:
-        m = doc.to_dict()
-        if rate in m.get("rate", ""):
-            result += m.get("title") + "\n"
-
-    if result == "":
-        info += "目前資料庫中查無此級別的電影。"
-    else:
+        # 連線到 Firestore 資料庫
+        db = firestore.client()
+        # 注意：這裡要確定對應到你有爬蟲寫入資料的那個集合名稱
+        collection_ref = db.collection("本週新片含分級")
+        docs = collection_ref.get()
+       
+        result = ""
+        count = 0
+       
+        # 開始迴圈比對資料庫
+        for doc in docs:
+            movie_data = doc.to_dict()
+            # 比對 Dialogflow 傳來的分級是否包含在資料庫的 rate 欄位中
+            if rate in movie_data.get("rate", ""):
+                result += "🎬 片名：" + movie_data.get("title", "") + "\n"
+                result += "🔗 介紹：" + movie_data.get("hyperlink", "") + "\n\n"
+                count += 1
+       
+        # 判斷有沒有找到符合條件的電影
         info += result
-    elif (action == "input.unknown"):
-        info =  req["queryResult"]["queryText"]
 
+    elif (action == "input.unknown"):
+        #info =  req["queryResult"]["queryText"]
+       
         instruction_text = (
             "你是一個熱心且知識豐富的專業智慧助理。"
-            "對於使用者的提問，請回覆重點的關鍵字，不要重述問題。"         
+            "對於使用者的提問，請回覆重點的關鍵字，不要重述問題。"        
         )
 
 
         ai_config = types.GenerateContentConfig(
-            max_output_tokens=500, 
+            max_output_tokens=500,
             system_instruction=instruction_text
         )
-
         response = client.models.generate_content(
-            model='gemini-3.5-flash', 
+            model='gemini-3.5-flash',
             contents=req["queryResult"]["queryText"],
             config=ai_config,
         )
@@ -141,8 +151,9 @@ def webhook():
         else:
             info = "抱歉，我現在無法生成回應，請稍後再試。"
 
-    return jsonify({"fulfillmentText": info})
 
+    # 將整理好的字串包裝成 Dialogflow 看得懂的 JSON 格式回傳
+    return make_response(jsonify({"fulfillmentText": info}))
 @app.route("/weather")
 def weather():
     # 1. 取得使用者搜尋的縣市 (預設為空字串，這樣一進網頁就不會先抓台中)
